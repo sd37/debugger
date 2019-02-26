@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"syscall"
 
 	"golang.org/x/sys/unix"
 )
@@ -21,7 +22,6 @@ func catchError(err error) {
 }
 
 func setBreakPoint(pid int, addr uintptr) []byte {
-	var regs unix.PtraceRegs
 
 	originalData := make([]byte, 1)
 
@@ -31,6 +31,10 @@ func setBreakPoint(pid int, addr uintptr) []byte {
 	_, err = unix.PtracePokeData(pid, addr, []byte{0xCC})
 	catchError(err)
 
+	tempData := make([]byte, 1)
+	_, err = unix.PtracePeekData(pid, addr, tempData)
+	fmt.Println("Check if breakpoint was set: ", tempData)
+
 	return originalData
 }
 
@@ -39,7 +43,7 @@ func unsetBreakPoint(pid int, addr uintptr, originalData []byte) {
 	catchError(err)
 }
 
-func getProgramCounter(pid int) {
+func getProgramCounter(pid int) uint64 {
 	var regs unix.PtraceRegs
 	catchError(unix.PtraceGetRegs(pid, &regs))
 
@@ -51,12 +55,11 @@ func setProgramCounter(pid int, pc uint64) {
 	catchError(unix.PtraceGetRegs(pid, &regs))
 
 	regs.SetPC(pc)
-	catchError(unix.PtraceSetRegs())
+	catchError(unix.PtraceSetRegs(pid, &regs))
 }
 
-func decreaseProgramCounter(pid int) {
-	var regs unix.PtraceGetRegs
-	setProgramCounter(getProgramCounter(pid) - 1)
+func decreaseProgramCounter(pid int, pc uint64) {
+	setProgramCounter(pid, getProgramCounter(pid)-uint64(1))
 }
 
 func singleStep(pid int) {
@@ -76,9 +79,7 @@ func getLineFromPC() {
 	//uncompresses the section data returned by Section
 	pcToLineData, err := pcToLineSection.Data()
 
-	symbolTableSection := executable.SectionByType(elf.SHT_PROGBITS)
-	symbolTableSection = executable.Section(".gosymtab")
-	fmt.Println(symbolTableSection)
+	symbolTableSection := executable.Section(".gosymtab")
 	symbolTableData, err := symbolTableSection.Data()
 
 	lineTableForText := gosym.NewLineTable(pcToLineData, executable.Section(".text").Addr)
@@ -93,6 +94,14 @@ func getLineFromPC() {
 
 	fmt.Println(filename)
 	fmt.Println(lineno)
+}
+
+func printRegisters(pid int) {
+	var regs unix.PtraceRegs
+	catchError(unix.PtraceGetRegs(pid, &regs))
+
+	fmt.Println(regs.Rax)
+	fmt.Println(regs.Rdi)
 }
 
 func main() {
@@ -118,35 +127,52 @@ func main() {
 	pid := cmd.Process.Pid
 
 	ppid := os.Getppid()
-	fmt.Println("ppid from os: ", ppid)
 
-	pgid, err1 := unix.Getpgid(pid)
-	catchError(err1)
-	fmt.Println("Get pgid from os: ", pgid)
+	catchError(unix.PtraceSetOptions(pid, syscall.PTRACE_O_TRACECLONE))
 
-	catchError(unix.PtraceSetOptions(pid, unix.PTRACE_O_TRACECLONE))
+	breakpoint := uintptr(getProgramCounter(pid) + 2)
+	original := setBreakPoint(pid, breakpoint)
 
-	catchError(unix.PtraceSingleStep(pid))
+	continueExecution(pid)
 
-	steps := 1
-	for {
-		pid, err = unix.Wait4(-1*ppid, &ws, unix.WALL, nil)
-		catchError(err)
+	_, err = unix.Wait4(-1*ppid, &ws, unix.WALL, nil)
+	catchError(err)
 
-		if pid == -1 {
-			catchError(err)
-		}
+	printRegisters(pid)
 
-		if pid == cmd.Process.Pid && ws.Exited() {
-			break
-		}
+	unsetBreakPoint(pid, breakpoint, original)
 
-		if !ws.Exited() {
-			catchError(unix.PtraceSingleStep(pid))
-			steps += 1
-		}
-	}
+	setProgramCounter(pid, uint64(breakpoint))
+	singleStep(pid)
 
-	fmt.Println("Steps: ", steps)
+	_, err = unix.Wait4(-1*ppid, &ws, unix.WALL, nil)
+	catchError(err)
+
+	printRegisters(pid)
+
+	// catchError(unix.PtraceSetOptions(pid, unix.PTRACE_O_TRACECLONE))
+
+	// catchError(unix.PtraceSingleStep(pid))
+
+	// steps := 1
+	// for {
+	// 	pid, err = unix.Wait4(-1*ppid, &ws, unix.WALL, nil)
+	// 	catchError(err)
+
+	// 	if pid == -1 {
+	// 		catchError(err)
+	// 	}
+
+	// 	if pid == cmd.Process.Pid && ws.Exited() {
+	// 		break
+	// 	}
+
+	// 	if !ws.Exited() {
+	// 		catchError(unix.PtraceSingleStep(pid))
+	// 		steps += 1
+	// 	}
+	// }
+
+	// fmt.Println("Steps: ", steps)
 
 }

@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"debug/elf"
 	"debug/gosym"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 
 	"golang.org/x/sys/unix"
@@ -70,6 +72,36 @@ func continueExecution(pid int) {
 	catchError(unix.PtraceCont(pid, 0))
 }
 
+func getPCFromLine() {
+
+	executable, err := elf.Open("hello/hello")
+	catchError(err)
+
+	//Returns section in elf file
+	pcToLineSection := executable.Section(".gopclntab")
+	//uncompresses the section data returned by Section
+	pcToLineData, err := pcToLineSection.Data()
+
+	//returns tge go symbol table
+	symbolTableSection := executable.Section(".gosymtab")
+	symbolTableData, err := symbolTableSection.Data()
+
+	lineTableForText := gosym.NewLineTable(pcToLineData, executable.Section(".text").Addr)
+
+	//NewTable decodes the Go symbol table (the ".gosymtab" section in ELF),
+	//returning an in-memory representation.
+	newSymbolTable, err := gosym.NewTable(symbolTableData, lineTableForText)
+	catchError(err)
+
+	// fmt.Println(newSymbolTable.Files)
+
+	pc, fn, err := newSymbolTable.LineToPC("/go/src/debugger/hello/hello.go", 8)
+	catchError(err)
+
+	fmt.Println(pc)
+	fmt.Println(fn)
+}
+
 func getLineFromPC() {
 	executable, err := elf.Open("hello/hello")
 	catchError(err)
@@ -104,9 +136,29 @@ func printRegisters(pid int) {
 	fmt.Println(regs.Rdi)
 }
 
+func processInput() {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Enter text: ")
+
+	for {
+		text, _ := reader.ReadString('\n')
+
+		if strings.Contains(text, "breakpoint") {
+			//lineNumber := parseLineNumber(text)
+
+		} else if strings.Contains(text, "stop") {
+
+		} else if strings.Contains(text, "cont") {
+
+		}
+	}
+}
+
 func main() {
 
 	getLineFromPC()
+
+	getPCFromLine()
 
 	//Start another process that needs to be debugged
 	target := "hello/hello"

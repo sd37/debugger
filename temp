@@ -1,0 +1,60 @@
+//One iteration through the binary, WORKING
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+
+	"golang.org/x/sys/unix"
+)
+
+var ws unix.WaitStatus
+var regs unix.PtraceRegs
+
+func catchError(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func main() {
+
+	//Start another process that needs to be debugged
+	target := "hello/hello"
+
+	cmd := exec.Command(target)
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.SysProcAttr = &unix.SysProcAttr{
+		Ptrace: true,
+	}
+
+	cmd.Start()
+
+	pid := cmd.Process.Pid
+
+	ppid := os.Getppid()
+	fmt.Println("ppid from os: ", ppid)
+
+	pgid, err := unix.Getpgid(pid)
+	catchError(err)
+	fmt.Println("Get pgid from os: ", pgid)
+
+	err = cmd.Wait()
+	if err != nil {
+		fmt.Println("Wait returned: %v\n\n", err)
+	}
+	
+
+	fmt.Println("Restarting the spawned process")
+	catchError(unix.PtraceCont(pid, 0))
+
+	_, err = unix.Wait4(pid, &ws, 0, nil)
+	catchError(err)
+
+	fmt.Println("Exited: ", ws.ExitStatus())
+	fmt.Println("Other thing ", ws.Exited())
+
+}

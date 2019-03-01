@@ -2,12 +2,18 @@ package main
 
 import (
 	"fmt"
-	"log"
 )
 
 func main() {
-	i := 5
-	fmt.Println("bye world! ", i)
-	log.Println("woohoo")
-	i = 7
+	i := 0x3335
+	f1(i)
+	fmt.Println("bye bye bye")
+}
+
+func f1(i int) int {
+	return f2(i, 0x2222)
+}
+
+func f2(i, j int) int {
+	return i * j
 }

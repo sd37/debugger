@@ -1,61 +1,78 @@
 package main
 
-import (
-	"fmt"
+// import (
+// 	"fmt"
+// 	"os"
+// 	"os/exec"
 
-	"golang.org/x/sys/unix"
-)
+// 	"golang.org/x/sys/unix"
+// )
 
-func errors(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
+// var ws unix.WaitStatus
+// var regs unix.PtraceRegs
 
-func main1() {
+// func catchError(err error) {
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// }
 
-	// target := "hello/hello"
+// func main() {
 
-	// cmd := exec.Command(target)
-	// cmd.Stderr = os.Stderr
-	// cmd.Stdin = os.Stdin
-	// cmd.Stdout = os.Stdout
-	// cmd.SysProcAttr = &syscall.SysProcAttr{
-	// 	Ptrace: true,
-	// }
+// 	//Start another process that needs to be debugged
+// 	target := "hello/hello"
 
-	// cmd.Start()
-	// err := cmd.Wait()
-	// if err != nil {
-	// 	fmt.Printf("Wait returned: %v\n\n", err)
-	// }
+// 	cmd := exec.Command(target)
+// 	cmd.Stderr = os.Stderr
+// 	cmd.Stdin = os.Stdin
+// 	cmd.Stdout = os.Stdout
+// 	cmd.SysProcAttr = &unix.SysProcAttr{
+// 		Ptrace: true,
+// 	}
 
-	// pid := cmd.Process.Pid
-	// fmt.Println("PID of hello: ", pid)
-	//_, _ := syscall.Getpgid(pid)
+// 	cmd.Start()
 
-	pid := 5461
-	fmt.Println("parenttt")
-	errors(unix.PtraceAttach(pid))
-	var addr uintptr = 4527539
-	data := make([]byte, 5, 5)
+// 	pid := cmd.Process.Pid
 
-	// fmt.Println("PEEKING DATA")
-	// _, err := unix.PtracePeekData(pid, addr, data)
-	// errors(err)
-	fmt.Println("POKING DATA")
-	data[0] = 0xCC
-	_, err := unix.PtracePokeData(pid, addr, data)
-	errors(err)
-	fmt.Println(data)
-	errors(unix.PtraceSingleStep(pid))
-	var ws unix.WaitStatus
-	unix.Wait4(pid, &ws, 0, nil)
+// 	// catchError(unix.PtraceAttach(pid))
 
-	// errors(unix.PtraceAttach(pid))
-	//errors(unix.PtraceSingleStep(pid))
+// 	err := cmd.Wait()
+// 	if err != nil {
+// 		fmt.Printf("Wait returned: %v\n\n", err)
+// 	}
 
-	// var ws unix.WaitStatus
+// 	regs := 0x455ac0
+// 	catchError(unix.PtraceGetRegs(pid, &regs))
+// 	fmt.Println("Regs: ", regs.Rip)
 
-	fmt.Println("hi")
-}
+// 	reg_data := make([]byte, 8)
+// 	_, err = unix.PtracePeekText(pid, uintptr(regs.Rip), reg_data)
+// 	catchError(err)
+
+// 	fmt.Println("Reg Data:", reg_data)
+
+// 	catchError(unix.PtraceCont(pid, 0))
+
+// 	// pid := cmd.Process.Pid
+// 	// pgid, _ := unix.Getpgid(pid)
+// 	// fmt.Println("PID of hello: ", pid)
+
+// 	// catchError(unix.PtraceSingleStep(pid))
+
+// 	// for {
+// 	// catchError(unix.PtraceSingleStep(pid))
+
+// 	// catchError(unix.PtraceGetRegs(pid, &regs))
+// 	// fmt.Println("Regs: ", regs.Rsp)
+// 	// reg_data := make([]byte, 5)
+// 	// _, err := unix.PtracePeekText(pid, uintptr(regs.Rsp), reg_data)
+// 	// catchError(err)
+
+// 	// 	// fmt.Println("Reg Data:", reg_data)
+// 	// 	//unix.Wait4(-1*pgid, &ws, 0, nil)
+// 	// 	//fmt.Println(ws)
+
+// 	// }
+
+// 	fmt.Println("hi")
+// }

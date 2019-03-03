@@ -1,4 +1,4 @@
-# debugger :beetle:
+# debugger :beetle: :hammer:
 A debugger from scratch in Go, for Go binaries and by a Gopher.
 
 You can find the slides with the name Debugger_from_scratch_slides.pdf

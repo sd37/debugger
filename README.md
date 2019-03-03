@@ -18,4 +18,9 @@ Compile the debugger using:
 go build debugger.go
 ```
 
+To run:
+```
+./debugger <target_binary>
+```
+
 Assumption: There is only one source file in the target binary.

@@ -112,9 +112,7 @@ func outputStack(symTable *gosym.Table, pid int, ip uint64, sp uint64, bp uint64
 		// Read the next stack frame
 		b := make([]byte, frameSize)
 		_, err := unix.PtracePeekData(pid, uintptr(sp), b)
-		if err != nil {
-			panic(err)
-		}
+		catchError(err)
 
 		// The address to return to is at the top of the frame
 		content := binary.LittleEndian.Uint64(b[i : i+8])
@@ -151,28 +149,19 @@ func generateSymbolTable(prog string) {
 	if err != nil {
 		panic(err)
 	}
-	defer exe.Close()
 
 	addr := exe.Section(".text").Addr
 
 	lineTableData, err := exe.Section(".gopclntab").Data()
-	if err != nil {
-		panic(err)
-	}
+	catchError(err)
+
 	lineTable := gosym.NewLineTable(lineTableData, addr)
-	if err != nil {
-		panic(err)
-	}
 
 	symTableData, err := exe.Section(".gosymtab").Data()
-	if err != nil {
-		panic(err)
-	}
+	catchError(err)
 
 	symTable, err = gosym.NewTable(symTableData, lineTable)
-	if err != nil {
-		panic(err)
-	}
+	catchError(err)
 }
 
 func getInput(pid int) bool {
